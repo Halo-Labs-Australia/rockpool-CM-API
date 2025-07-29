@@ -26,5 +26,24 @@ def get_cm_access_token():
         return token
     else:
         raise Exception(f"Failed to retrieve token: {response.status_code} - {response.text}")
+
     
+def get_residency(facility_id, TOKEN):
+    url = f"{BASE_URL}/api/ExternalResidencyV2/Search?facilityId={facility_id}"
     
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Accept": "application/json"
+    }
+    
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()  # Will raise an error for 401, 403, etc.
+
+    if response.status_code != 200:
+        raise Exception(f"Failed to retrieve data: {response.status_code} - {response.text}")
+    
+    data = response.json()["Residencies"]
+
+    # If the data is nested, adjust this line as needed
+    df = pd.DataFrame(data)
+    return df
