@@ -7,6 +7,7 @@ BASE_URL = "https://rockpoolrac.residential.icarehealth.com.au/Tetra.Web"
 TOKEN_URL = f"{BASE_URL}/OAuth/Token"
 API_USER = "cmapi"
 
+
 def get_cm_access_token() -> str:
     """
     Obtain an OAuth2 access token using client credentials flow.
@@ -41,10 +42,7 @@ def get_residency(facility_id: int, token: str) -> pd.DataFrame:
     Fetch residency data for a given facility ID and return as a DataFrame.
     """
     url = f"{BASE_URL}/api/ExternalResidencyV2/Search?facilityId={facility_id}"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     response = requests.get(url, headers=headers)
     if not response.ok:
