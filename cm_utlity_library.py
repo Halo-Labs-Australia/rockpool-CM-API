@@ -1,51 +1,55 @@
-import requests
-import base64
 import os
+import base64
+import requests
+import pandas as pd
+
+BASE_URL = "https://rockpoolrac.residential.icarehealth.com.au/Tetra.Web"
+TOKEN_URL = f"{BASE_URL}/OAuth/Token"
+API_USER = "cmapi"
 
 
-def get_cm_access_token():
-    # Credentials
-    password = os.getenv("CM_API_PASSWORD", "")  # Default value for testing
-    username = "cmapi"
-    # Token URL
-    token_url = (
-        "https://rockpoolrac.residential.icarehealth.com.au/Tetra.Web/OAuth/Token"
-    )
-    # Encode Basic Auth header
-    credentials = f"{username}:{password}"
-    encoded_credentials = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-    # Headers and form data
+def get_cm_access_token() -> str:
+    """
+    Obtain an OAuth2 access token using client credentials flow.
+    Requires the CM_API_PASSWORD to be set in the environment.
+    """
+    password = os.getenv("CM_API_PASSWORD")
+    if not password:
+        raise EnvironmentError("CM_API_PASSWORD not set in environment.")
+
+    # Construct Basic Auth header
+    credentials = f"{API_USER}:{password}"
+    encoded_credentials = base64.b64encode(credentials.encode()).decode()
+
     headers = {
         "Authorization": f"Basic {encoded_credentials}",
         "Content-Type": "application/x-www-form-urlencoded",
     }
+
     data = {"grant_type": "client_credentials"}
-    # Token request
-    response = requests.post(token_url, headers=headers, data=data)
-    if response.status_code == 200:
-        token = response.json().get("access_token")
-        return token
+
+    response = requests.post(TOKEN_URL, headers=headers, data=data)
+    if response.ok:
+        return response.json().get("access_token")
     else:
-        raise Exception(
-            f"Failed to retrieve token: {response.status_code} - {response.text}"
+        raise requests.HTTPError(
+            f"Failed to get token: {response.status_code} - {response.text}"
         )
 
 
-def get_residency(facility_id, TOKEN):
+def get_residency(facility_id: int, token: str) -> pd.DataFrame:
+    """
+    Fetch residency data for a given facility ID and return as a DataFrame.
+    """
     url = f"{BASE_URL}/api/ExternalResidencyV2/Search?facilityId={facility_id}"
-
-    headers = {"Authorization": f"Bearer {TOKEN}", "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
 
     response = requests.get(url, headers=headers)
-    response.raise_for_status()  # Will raise an error for 401, 403, etc.
-
-    if response.status_code != 200:
-        raise Exception(
-            f"Failed to retrieve data: {response.status_code} - {response.text}"
+    if not response.ok:
+        raise requests.HTTPError(
+            f"Failed to fetch residency for facility {facility_id}: "
+            f"{response.status_code} - {response.text}"
         )
 
-    data = response.json()["Residencies"]
-
-    # If the data is nested, adjust this line as needed
-    df = pd.DataFrame(data)
-    return df
+    data = response.json().get("Residencies", [])
+    return pd.DataFrame(data)
